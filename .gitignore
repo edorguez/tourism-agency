@@ -51,3 +51,8 @@ testem.log
 .DS_Store
 Thumbs.db
 /src/TourismAgencyBack/src/.DS_Store
+
+# Local deployment secrets
+.env
+.env.*
+!.env.example

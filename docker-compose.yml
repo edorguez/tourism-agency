@@ -1,0 +1,18 @@
+name: tourism-agency
+
+services:
+  tourism-agency-edge:
+    container_name: tourism-agency-edge
+    build:
+      context: .
+      dockerfile: deploy/tourism-agency.Dockerfile
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${EDGE_PORT:-8081}:80"
+    networks:
+      - shared-edge
+    restart: unless-stopped
+
+networks:
+  shared-edge:
+    external: true
+    name: shared-edge
