@@ -32,7 +32,7 @@ curl -I http://localhost:8081
 sudo mkdir -p /opt/docker-projects /opt/docker-projects-data
 sudo chown -R "$USER":"$USER" /opt/docker-projects /opt/docker-projects-data
 
-git clone https://github.com/EdoRguez/tourism-agency.git /opt/docker-projects/tourism-agency
+git clone https://github.com/edorguez/tourism-agency.git /opt/docker-projects/tourism-agency
 cd /opt/docker-projects/tourism-agency
 
 cp .env.example .env
@@ -60,6 +60,18 @@ cloudflared tunnel route dns edoutput-tunnel business-manager.edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel www.edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel '*.edoutput.dev'
 ```
+
+Si el CLI no acepta el wildcard, crea el registro en el dashboard de Cloudflare:
+
+```text
+Tipo: CNAME
+Nombre: *
+Destino: <UUID>.cfargotunnel.com
+Proxy: activado
+```
+
+El certificado Universal SSL cubre `edoutput.dev` y `*.edoutput.dev` (un nivel),
+por eso los tenants usan `cliente.edoutput.dev`.
 
 Copiar las credenciales al servidor:
 
