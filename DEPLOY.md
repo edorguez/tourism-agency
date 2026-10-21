@@ -57,6 +57,7 @@ Crear los DNS:
 cloudflared tunnel route dns edoutput-tunnel tourism-agency.edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel gps-medical-assistance.edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel business-manager.edoutput.dev
+cloudflared tunnel route dns edoutput-tunnel edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel www.edoutput.dev
 cloudflared tunnel route dns edoutput-tunnel '*.edoutput.dev'
 ```
@@ -73,11 +74,11 @@ Proxy: activado
 El certificado Universal SSL cubre `edoutput.dev` y `*.edoutput.dev` (un nivel),
 por eso los tenants usan `cliente.edoutput.dev`.
 
-Copiar las credenciales al servidor:
+Copiar las credenciales al servidor y crear el `config.yml` en la misma carpeta:
 
 ```bash
 sudo mkdir -p /opt/docker-projects-data/edge/cloudflared
-sudo chown -R "$USER":"$USER" /opt/docker-projects-data/edge
+sudo chown -R 65532:65532 /opt/docker-projects-data/edge/cloudflared
 scp ~/.cloudflared/<UUID>.json usuario@servidor:/opt/docker-projects-data/edge/cloudflared/
 
 # La imagen oficial de cloudflared corre como UID/GID 65532.
@@ -85,9 +86,9 @@ sudo chown 65532:65532 /opt/docker-projects-data/edge/cloudflared/<UUID>.json
 sudo chmod 600 /opt/docker-projects-data/edge/cloudflared/<UUID>.json
 ```
 
-En el servidor, crear **sin versionar**:
+Crear **sin versionar** el archivo:
 
-`/opt/docker-projects/edge/config.yml`
+`/opt/docker-projects-data/edge/cloudflared/config.yml`
 
 ```yaml
 tunnel: <UUID>
@@ -103,9 +104,11 @@ ingress:
   - hostname: business-manager.edoutput.dev
     service: http://business-manager-edge:80
 
-  # Reservado para el portfolio futuro.
+  - hostname: edoutput.dev
+    service: http://portfolio-page-edge:80
+
   - hostname: www.edoutput.dev
-    service: http_status:404
+    service: http://portfolio-page-edge:80
 
   # Tenants de business-manager.
   - hostname: "*.edoutput.dev"
@@ -114,11 +117,11 @@ ingress:
   - service: http_status:404
 ```
 
-Permisos del archivo de configuración (no contiene secretos, pero cloudflared debe poder leerlo):
+Permisos:
 
 ```bash
-sudo chown 65532:65532 /opt/docker-projects/edge/config.yml
-sudo chmod 644 /opt/docker-projects/edge/config.yml
+sudo chown 65532:65532 /opt/docker-projects-data/edge/cloudflared/config.yml
+sudo chmod 644 /opt/docker-projects-data/edge/cloudflared/config.yml
 ```
 
 `/opt/docker-projects/edge/docker-compose.yml`
@@ -130,7 +133,7 @@ services:
     container_name: edoutput-cloudflared
     command: tunnel --config /etc/cloudflared/config.yml run
     volumes:
-      - ./config.yml:/etc/cloudflared/config.yml:ro
+      # Un solo mount: config.yml y <UUID>.json viven aquí.
       - /opt/docker-projects-data/edge/cloudflared:/etc/cloudflared:ro
     networks:
       - shared-edge
@@ -142,7 +145,10 @@ networks:
     name: shared-edge
 ```
 
-Arrancar el túnel después de los tres proyectos:
+> No montes `./config.yml` por separado dentro de `/etc/cloudflared`: Docker no
+> puede crear un mountpoint dentro de una carpeta que ya está montada read-only.
+
+Arrancar el túnel después de los proyectos:
 
 ```bash
 cd /opt/docker-projects/edge
@@ -155,29 +161,16 @@ docker compose up -d
 - SSL/TLS: **Full (strict)**; si aparece error 526, usar **Full**.
 - No hace falta instalar certificados en el servidor.
 
-## Portfolio futuro (`edoutput.dev`)
+## Portfolio (`edoutput.dev`)
 
-El apex `edoutput.dev` y `www.edoutput.dev` quedan reservados para el portfolio.
-Hoy `www` responde 404 a propósito y el apex no tiene ruta en el túnel.
+El portfolio vive en `edoutput.dev` y `www.edoutput.dev`, servido por
+`portfolio-page-edge:80` dentro de la red `shared-edge`.
 
-Cuando exista el proyecto `portfolio`:
+Su despliegue está documentado en:
 
-1. Añadir su edge a la red `shared-edge`.
-2. En `/opt/docker-projects/edge/config.yml`, antes del wildcard, agregar:
-
-```yaml
-  - hostname: edoutput.dev
-    service: http://portfolio-edge:80
-
-  - hostname: www.edoutput.dev
-    service: http://portfolio-edge:80
+```text
+/opt/docker-projects/portfolio-page/DEPLOY.md
 ```
 
-3. Crear el DNS del apex:
-
-```bash
-cloudflared tunnel route dns edoutput-tunnel edoutput.dev
-```
-
-No hace falta tocar los tres proyectos actuales.
+No hay que tocar los tres proyectos actuales ni el wildcard de tenants.
 
